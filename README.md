@@ -271,16 +271,16 @@ pricing-intelligence/
 |-- 03_Power BI/
 |   |-- Report.pbix        # Main Power BI report file
 |
-|-- 04_Python/
+|-- 04_Python Simulation/
 |   |-- Scenario Simulation.ipynb              # Google Colab simulation notebook
 |     |-- functions/
 |           |-- simulate_discount_change.py
 |           |-- simulate_volume_growth.py
 |           |-- simulate_reallocation.py
 |
-|-- reports/
-|   |-- Strategic_Report.docx
-|   |-- Pricing_Appendices.docx
+|-- 05_Project Strategic Report/
+|   |-- Pricing Executive Report.pdf
+|   |-- Pricing Appendices.pdf
 |
 |-- README.md
 ```
@@ -291,7 +291,7 @@ pricing-intelligence/
 
 The executive report and supporting appendices cover all seven analytical themes, simulation results for 12 scenarios, four strategic recommendations, and a 24-month implementation roadmap.
 
-- `05_Project Strategic Report/Pricing_Executive_Report.docx`
-- `05_Project Strategic Report/Pricing_Appendices.docx`
+- `05_Project Strategic Report/Pricing Executive Report.pdf`
+- `05_Project Strategic Report/Pricing Appendices.pdf`
 
 ---
