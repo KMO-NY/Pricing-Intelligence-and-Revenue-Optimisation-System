@@ -1,7 +1,6 @@
 USE ecommerce_analytics;
 
-DROP VIEW IF EXISTS v_monthly_revenue_summary;
-
+-- Monthly Revenue Summary:
 CREATE OR REPLACE VIEW v_monthly_revenue_summary AS
 WITH monthly AS (
     SELECT
@@ -30,8 +29,6 @@ lagged AS (
     FROM monthly
 )
 SELECT
-    year,
-    month_name,
     month_start,
 
     total_revenue,
@@ -59,10 +56,7 @@ SELECT
 
 FROM lagged;
 
--- Quick checks:
-SELECT * FROM v_monthly_revenue_summary;
-
-DROP VIEW IF EXISTS v_event_uplift_by_category;
+-- Sales Event Analysis:
 CREATE OR REPLACE VIEW v_event_uplift_by_category AS
 WITH monthly_event AS (
     SELECT
@@ -114,13 +108,8 @@ JOIN baseline b
     ON me.category = b.category
    AND me.brand_type = b.brand_type;
 
--- Quick checks:
-SELECT * FROM v_event_uplift_by_category;
-SELECT * FROM v_event_uplift_by_category WHERE sales_event = "Festival";
-
 -- Revenue by Discount Over Time
-DROP VIEW IF EXISTS v_monthly_discount_band;
-CREATE VIEW v_monthly_discount_band AS
+CREATE OR REPLACE VIEW v_monthly_discount_band AS
 SELECT
   dd.year,
   dd.month,
@@ -134,18 +123,14 @@ FROM fact_orders f
 JOIN dim_date dd ON dd.date_id = f.date_id
 GROUP BY dd.year, dd.month, dd.month_start, discount_band;
 
--- Quick checks:
-SELECT * FROM v_monthly_discount_band;
-
 -- Discounting Impact:
-DROP VIEW IF EXISTS v_discount_band_performance;
 CREATE OR REPLACE VIEW v_discount_band_performance AS
 WITH banded AS (
     SELECT
         dd.month_start,
         p.category,
         p.brand_type,
-        st.state_name,
+        st.zone,
         discount_band(f.discount_percent) AS discount_range,
         SUM(f.units_sold) AS total_units,
         SUM(f.revenue) AS total_revenue,
@@ -164,14 +149,14 @@ WITH banded AS (
         dd.month_start,
         p.category,
         p.brand_type,
-        st.state_name,
+        st.zone,
         discount_band(f.discount_percent)
 )
 SELECT
     month_start,
     category,
     brand_type,
-    state_name,
+    zone,
     discount_range,
     total_units,
     total_revenue,
@@ -182,19 +167,14 @@ SELECT
     ROUND(avg_final_price, 2) AS avg_final_price
 FROM banded;
 
-SELECT *
-FROM v_discount_band_performance;
-
 -- Discount Impact Stability
-DROP VIEW IF EXISTS v_discount_response_quality;
-
 CREATE OR REPLACE VIEW v_discount_response_quality AS
 WITH monthly AS (
     SELECT
         dd.month_start,
         p.category,
         p.brand_type,
-        st.state_name,
+        st.zone,
         e.sales_event,
         ROUND(
             SUM(f.discount_percent * f.units_sold) / NULLIF(SUM(f.units_sold),0),
@@ -210,18 +190,18 @@ WITH monthly AS (
         dd.month_start,
         p.category,
         p.brand_type,
-        st.state_name,
+        st.zone,
         e.sales_event
 ),
 lagged AS (
     SELECT
         *,
         LAG(w_avg_discount) OVER (
-            PARTITION BY category, brand_type, state_name, sales_event
+            PARTITION BY category, brand_type, zone, sales_event
             ORDER BY month_start
         ) AS prev_discount,
         LAG(units) OVER (
-            PARTITION BY category, brand_type, state_name, sales_event
+            PARTITION BY category, brand_type, zone, sales_event
             ORDER BY month_start
         ) AS prev_units
     FROM monthly
@@ -229,7 +209,7 @@ lagged AS (
 SELECT
     category,
     brand_type,
-    state_name,
+    zone,
     sales_event,
 
     COUNT(*) AS observations,
@@ -273,13 +253,10 @@ FROM lagged
 GROUP BY
     category,
     brand_type,
-    state_name,
+    zone,
     sales_event;
 
--- Quick Check:
-SELECT * FROM v_discount_response_quality;
-
-DROP VIEW IF EXISTS v_price_sensitivity_by_segment;
+-- Price Sensitivity:
 CREATE OR REPLACE VIEW v_price_sensitivity_by_segment AS
 WITH seg AS (
     SELECT
@@ -368,10 +345,7 @@ SELECT
     END AS sensitivity_segment
 FROM elasticity_calc;
 
-SELECT * 
-FROM v_price_sensitivity_by_segment;
-
-DROP VIEW IF EXISTS v_state_growth;
+-- State Growth
 CREATE OR REPLACE VIEW v_state_growth AS
 WITH monthly AS (
     SELECT
@@ -424,14 +398,13 @@ SELECT
     ) AS mom_growth_pct
 
 FROM monthly;
--- Quick checks:
-SELECT * FROM v_state_growth;
 
-DROP VIEW IF EXISTS v_revenue_concentration_state;
-CREATE OR REPLACE VIEW v_revenue_concentration_state AS
+
+CREATE OR REPLACE VIEW v_revenue_concentration_geo AS
 WITH state_rev AS (
     SELECT
         dd.month_start,
+        st.zone,
         st.state_name,
         SUM(f.revenue) AS total_revenue
     FROM fact_orders f
@@ -445,6 +418,7 @@ WITH state_rev AS (
 )
 SELECT
     month_start,
+    zone,
     state_name,
     total_revenue,
     ROUND(
@@ -459,13 +433,7 @@ SELECT
     , 4) AS cumulative_revenue_share
 FROM state_rev;
 
--- Quick checks:
-SELECT * 
-FROM v_revenue_concentration_state;
-
 -- Inventory Pressure Pricing Behaviour
-DROP VIEW IF EXISTS v_inventory_pricing_pressure;
-
 CREATE OR REPLACE VIEW v_inventory_pricing_pressure AS
 SELECT
     p.category,
@@ -506,13 +474,7 @@ SELECT
         SUM(CAST(f.final_price * f.units_sold AS DECIMAL(20,2)))
         / NULLIF(SUM(CAST(f.base_price * f.units_sold AS DECIMAL(20,2))), 0),
         4
-    ) AS realization_ratio,
-
-    ROUND(
-        SUM(CAST(f.final_price * f.units_sold AS DECIMAL(20,2)))
-        / NULLIF(SUM(f.units_sold), 0),
-        2
-    ) AS w_avg_final_price
+    ) AS realization_ratio
 
 FROM fact_orders f
 JOIN dim_product p
@@ -523,10 +485,7 @@ GROUP BY
     f.inventory_pressure,
     discount_band(f.discount_percent);
 
--- Quick Check:
-SELECT * FROM v_inventory_pricing_pressure;
-
-DROP VIEW IF EXISTS v_revenue_quality_risk_hotspots;
+-- Revenue Analysis:
 CREATE OR REPLACE VIEW v_revenue_quality_risk_hotspots AS
 WITH base AS (
     SELECT
@@ -591,8 +550,6 @@ SELECT
     margin_risk_rank
 FROM ranked;
 
-SELECT *
-FROM v_revenue_quality_risk_hotspots;
 
 -- Risk Adjusted Performance
 DROP VIEW IF EXISTS v_risk_adjusted_performance;
@@ -852,9 +809,6 @@ SELECT
     END AS risk_segment
 FROM final_scored; 
 
-SELECT * 
-FROM v_risk_adjusted_performance;
-
 -- Risk Adjusted Summary
 DROP VIEW IF EXISTS v_risk_adjusted_summary;
 CREATE OR REPLACE VIEW v_risk_adjusted_summary AS
@@ -989,11 +943,8 @@ SELECT
     END AS strategic_action
 FROM ranked;
 
-SELECT * 
-FROM v_risk_adjusted_summary;
 
 -- Competition vs Discount Performance
-DROP VIEW IF EXISTS v_competition_discount_performance;
 CREATE OR REPLACE VIEW v_competition_discount_performance AS
 SELECT
     p.category,
@@ -1051,13 +1002,7 @@ GROUP BY
     f.competition_intensity,
     discount_band(f.discount_percent);
 
--- Quick checks:
-SELECT * FROM v_competition_discount_performance;
-
-
-
 -- Pricing Intelligence Table
-DROP VIEW IF EXISTS v_pricing_intelligence;
 CREATE OR REPLACE VIEW v_pricing_intelligence AS
 WITH monthly_seg AS (
   SELECT
@@ -1258,6 +1203,3 @@ LEFT JOIN best_band bb
   ON bb.category = st.category
  AND bb.brand_type = st.brand_type
 ORDER BY st.seg_revenue DESC;
-
-SELECT * 
-FROM v_pricing_intelligence;
