@@ -1,8 +1,6 @@
-# End-to-End-Pricing-Intelligence-and-Revenue-Optimization-System
+# End-to-End Pricing Intelligence and Revenue Optimisation System
 
 ---
-
-# End-to-End Pricing Intelligence and Revenue Optimisation System
 
 ## Table of Contents
 
@@ -150,7 +148,7 @@ To run the views against the dataset:
 
 ```sql
 -- Example: load the discount band performance view
-SOURCE sql/views/V_discount_band_performance.sql;
+SOURCE 02_SQL/03_views/V_discount_band_performance.sql;
 SELECT * FROM V_discount_band_performance;
 ```
 
